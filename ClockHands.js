@@ -25,6 +25,49 @@
   var HourHandLength  = 0;
   var HourHandPolygon = new Array(HandPolygon.length);
 
+  function drawRotDigit(poly_i, cos_a, sin_a, param) {
+    let poly_rot = [];
+
+    // Rotate every point of the digit
+    for (let j=0; j<poly_i.length; j+=2) {
+      var x = poly_i[j];
+      var y = poly_i[j+1];
+      poly_i[j] = (x * cos_a + y * sin_a) + param.cx;
+      poly_i[j+1] = (-x * sin_a + y * cos_a) + param.cy;
+    }
+
+    g.fillPoly(poly_i);
+  }
+
+  function drawClockHandText(minutes, hand_length, font_size, param) {
+    // Calculate transformation rotation
+    let rotation;
+    rotation = twoPi * (15 - minutes) / 60;
+
+    // Set font to get accuarte result for stringWidth
+    g.setFont('Vector', font_size);
+    let text = minutes;
+    let str_width = g.stringWidth(text);
+    let right_side = ( rotation < halfPi && rotation > -halfPi );
+
+    let x_offset, y_offset;
+    if ( right_side ) {
+      x_offset = x_off_rect= hand_length - str_width + 5;
+    } else {
+      x_offset = - hand_length - 5;
+      rotation -= Pi;
+    }
+    y_offset = -font_size - 2;
+    var poly = g.getVectorFontPolys(text, {x:x_offset, y:y_offset, w:font_size, h:font_size});
+
+    let cos_a = Math.cos(rotation);
+    let sin_a = Math.sin(rotation);
+
+    // Loop thru all digits
+    for (let i=0; i<poly.length; i++)
+      drawRotDigit(poly[i], cos_a, sin_a, param);
+  }
+
   function prepareHourHandPolygon(newHourHandLength) {
     if (HourHandLength === newHourHandLength) { return; }
 
@@ -67,10 +110,12 @@
   }
 
   exports.draw = function draw (
-    Settings, CenterX, CenterY, outerRadius, Hours,Minutes,Seconds
+    Settings, CenterX, CenterY, outerRadius, Hours, Minutes, Seconds
   ) {
+    let minuteHandLength = outerRadius * 0.8;
+
     prepareHourHandPolygon  (outerRadius * 0.5);
-    prepareMinuteHandPolygon(outerRadius * 0.8);
+    prepareMinuteHandPolygon(minuteHandLength);
 
     var HoursAngle   = (Hours+(Minutes/60))/12 * twoPi - Pi;
     var MinutesAngle = (Minutes/60)            * twoPi - Pi;
@@ -82,6 +127,14 @@
 
     transformPolygon(MinuteHandPolygon, CenterX,CenterY, MinutesAngle);
     g.fillPoly(transformedPolygon);
+
+    let font_size = 16;
+    let param = {
+      cx : CenterX,
+      cy : CenterY,
+      cfg : Settings
+    };
+    drawClockHandText(Minutes, minuteHandLength, font_size, param);
 
     if (Seconds != null) {
       g.setColor(Settings.Seconds === 'Theme' ? g.theme.fgH : Settings.Seconds || '#FFFF00');
